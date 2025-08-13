@@ -1,10 +1,19 @@
 -- Script para entrar automaticamente na equipe Pirates
+task.wait(27) -- Delay de 40 segundos antes de entrar na equipe Pirates
 local args = {
     [1] = "ChooseTeam",
     [2] = "Pirates"
 }
 
 game:GetService("ReplicatedStorage").BetweenSides.Remotes.Events.PlayerEvent:FireServer(unpack(args))
+
+-- Aguarda 5 segundos e executa Refresh Tools automaticamente
+task.wait(5)
+pcall(function()
+    if type(RefreshTools) == "function" then
+        RefreshTools()
+    end
+end)
 
 
 -- ===== Auto-load ao trocar de servidor =====
@@ -603,7 +612,7 @@ local Tabs = {
 Tabs.Main:AddSection("Auto Farm")
 Tabs.Main:AddToggle("AutoFarm", {
     Title = "Auto Farm With Quests",
-    Default = false,
+    Default = true,
     Callback = function(Value)
         _ENV.OnFarm = Value
         if Value then
@@ -617,4 +626,491 @@ Tabs.Main:AddToggle("AutoFarm", {
                         continue
                     end
                     local CurrentQuest = a()
-                    i
+                    if not CurrentQuest then
+                        continue
+                    end
+                    if not ten(CurrentQuest.Target) then
+                        ete(CurrentQuest.NpcName, CurrentQuest.Id)
+                        continue
+                    end
+                    local Enemy = clst(CurrentQuest.Target)
+                    if not Enemy then
+                        continue
+                    end
+                    CurrentTarget = Enemy
+                    local HumanoidRootPart = Enemy:FindFirstChild("HumanoidRootPart")
+                    local Humanoid = Enemy:FindFirstChild("Humanoid")
+                    if HumanoidRootPart and Humanoid and Humanoid.Health > 0 then
+                        if _ENV.BringMob then
+                            brnge(CurrentQuest.Target, HumanoidRootPart.CFrame)
+                        end
+                        local targetCFrame = HumanoidRootPart.CFrame * CFrame.new(0, 7.5, 0) * CFrameAngle
+                        
+                        tepe(targetCFrame)
+                        task.wait(0)
+                        local AllQuestEnemies = pgaall(CurrentQuest.Target)
+                        if # AllQuestEnemies > 0 then
+                            faz(AllQuestEnemies)
+                        end
+                        d()
+                    end
+                end
+            end)
+        end
+    end
+})
+Tabs.Main:AddToggle("BringMob", {
+    Title = "Bring Mob (Current Quest)",
+    Default = true,
+    Callback = function(Value)
+        _ENV.BringMob = Value
+    end
+})
+Tabs.Main:AddSection("Tools")
+local ToolDropdown = Tabs.Main:AddDropdown("ToolDropdown", {
+    Title = "Select Tool",
+    Values = {},
+    Multi = false,
+    Default = nil
+})
+local ToolToggle = Tabs.Main:AddToggle("ToolToggle", {
+    Title = "Auto Equip Tool",
+    Default = true
+})
+local equipping = false
+local function EquipSelectedTool()
+    if not ToolToggle.Value then
+        return
+    end
+    if equipping then
+        return
+    end
+    equipping = true
+    local selectedTool = ToolDropdown.Value
+    if selectedTool then
+        local tool = Player.Backpack:FindFirstChild(selectedTool)
+        if tool and Player.Character and Player.Character:FindFirstChild("Humanoid") then
+            pcall(function()
+                Player.Character.Humanoid:EquipTool(tool)
+            end)
+        end
+    end
+    equipping = false
+end
+Player.CharacterAdded:Connect(function(character)
+    character:WaitForChild("Humanoid")
+    if ToolToggle.Value then
+        task.wait(1)
+        EquipSelectedTool()
+    end
+end)
+ToolToggle:OnChanged(function(Value)
+    if Value then
+        coroutine.wrap(function()
+            while ToolToggle.Value do
+                EquipSelectedTool()
+                task.wait(0.1)
+            end
+        end)()
+    else
+        if Player.Character then
+            local currentTool = Player.Character:FindFirstChildOfClass("Tool")
+            if currentTool then
+                currentTool.Parent = Player.Backpack
+            end
+        end
+    end
+end)
+local function RefreshTools()
+    local tools = {}
+    if Player and Player:FindFirstChild("Backpack") then
+        for _, tool in ipairs(Player.Backpack:GetChildren()) do
+            if tool:IsA("Tool") then
+                table.insert(tools, tool.Name)
+            end
+        end
+    end
+    ToolDropdown:SetValues(tools)
+end
+
+-- === Force "Combat" tool selected & auto-equip ===
+local function findCombatToolName()
+    local function hasCombatAttr(tool)
+        local ok, val = pcall(function() return tool:GetAttribute("CombatType") end)
+        return ok and (val == true or val == "true")
+    end
+    -- search character first
+    if Player.Character then
+        for _, t in ipairs(Player.Character:GetChildren()) do
+            if t:IsA("Tool") and (hasCombatAttr(t) or string.lower(t.Name):find("combat") or string.lower(t.Name):find("combate")) then
+                return t.Name
+            end
+        end
+    end
+    -- then backpack
+    if Player and Player:FindFirstChild("Backpack") then
+        for _, t in ipairs(Player.Backpack:GetChildren()) do
+            if t:IsA("Tool") and (hasCombatAttr(t) or string.lower(t.Name):find("combat") or string.lower(t.Name):find("combate")) then
+                return t.Name
+            end
+        end
+    end
+    return nil
+end
+
+local ForceCombatSelected = true
+task.spawn(function()
+    while ForceCombatSelected do
+        local ct = findCombatToolName()
+        if ct then
+            pcall(function()
+                ToolDropdown:SetValue(ct)
+            end)
+        end
+        task.wait(0.5)
+    end
+end)
+-- ================================================
+local RefreshButton = Tabs.Main:AddButton({
+    Title = "Refresh Tools",
+    Callback = RefreshTools
+})
+task.spawn(function()
+    task.wait(2)
+    RefreshTools()
+end)
+Tabs.Main:AddSection("Auto Stats")
+local StatDropdown = Tabs.Main:AddDropdown("StatDropdown", {
+    Title = "Select Stat to Upgrade",
+    Values = {
+        "Strength",
+        "Defense",
+        "Sword",
+        "Gun",
+        "DevilFruit"
+    },
+    Multi = false,
+    Default = "Strength",
+    Callback = function(Value)
+        Settings.SelectedStat = Value
+    end
+})
+local AutoStatsToggle = Tabs.Main:AddToggle("AutoStatsToggle", {
+    Title = "Auto Stats Selected",
+    Default = true,
+    Callback = function(Value)
+        Settings.AutoStats = Value
+        if Value then
+            coroutine.wrap(function()
+                while Settings.AutoStats do
+                    local remote = ReplicatedStorage.BetweenSides.Remotes.Events.StatsEvent
+                    if remote then
+                        local args = {
+                            "UpgradeStat",
+                            {
+                                Defense = Settings.SelectedStat == "Defense" and 1 or 0,
+                                Sword = Settings.SelectedStat == "Sword" and 1 or 0,
+                                Gun = Settings.SelectedStat == "Gun" and 1 or 0,
+                                Strength = Settings.SelectedStat == "Strength" and 1 or 0,
+                                DevilFruit = Settings.SelectedStat == "DevilFruit" and 1 or 0
+                            }
+                        }
+                        pcall(function()
+                            remote:FireServer(unpack(args))
+                        end)
+                    end
+                    task.wait(0.1)
+                end
+            end)()
+        end
+    end
+})
+local char = game:GetService("Players").LocalPlayer.Character or game:GetService("Players").LocalPlayer.CharacterAdded:Wait()
+local fireTouchEnabled = false
+local function fireTouch(part)
+    if not fireTouchEnabled or not part:IsA("BasePart") then
+        return
+    end
+    for _, ti in ipairs(part:GetChildren()) do
+        if ti:IsA("TouchTransmitter") then
+            for _, myPart in ipairs(char:GetDescendants()) do
+                if myPart:IsA("BasePart") then
+                    firetouchinterest(myPart, part, 0)
+                    task.wait()
+                    firetouchinterest(myPart, part, 1)
+                end
+            end
+        end
+    end
+end
+Tabs.Misc:AddSection("Teleports")
+local islands = {}
+local map = workspace:FindFirstChild("Map")
+if map then
+    for _, island in ipairs(map:GetChildren()) do
+        if island:FindFirstChild("Base") then
+            table.insert(islands, island.Name)
+        end
+    end
+end
+local IslandDropdown = Tabs.Misc:AddDropdown("IslandDropdown", {
+    Title = "Select Island",
+    Values = islands,
+    Multi = false,
+    Default = islands[1] or nil
+})
+Tabs.Misc:AddButton({
+    Title = "Teleport to Island",
+    Callback = function()
+        local selectedIsland = IslandDropdown.Value
+        if selectedIsland and map then
+            local island = map:FindFirstChild(selectedIsland)
+            if island and island:FindFirstChild("Base") then
+                -- Reiniciar personagem antes de teleportar
+                if Player.Character and Player.Character:FindFirstChild("Humanoid") then
+                    Player.Character.Humanoid.Health = 0
+                end
+
+                -- Esperar respawn
+                local newChar = Player.CharacterAdded:Wait()
+
+                -- Garantir que carregou completamente
+                newChar:WaitForChild("HumanoidRootPart", 5)
+
+                -- Agora teleportar
+                local base = island.Base
+                if base:FindFirstChild("HumanoidRootPart") then
+                    newChar:MoveTo(base.HumanoidRootPart.Position)
+                else
+                    newChar:MoveTo(base.WorldPivot.Position + Vector3.new(0, 5, 0))
+                end
+            end
+        end
+    end
+})
+Tabs.Misc:AddSection("Others")
+Tabs.Misc:AddToggle("FireTouchToggle", {
+    Title = "Auto Chest And Fruit Spawned",
+    Default = false,
+    Callback = function(value)
+        fireTouchEnabled = value
+        if value then
+            for _, v in ipairs(workspace:GetDescendants()) do
+                fireTouch(v)
+            end
+        end
+    end
+})
+local isRunning = false
+local function storeFruit()
+    while isRunning do
+        local fruitArgs = {
+            "StoreFruit"
+        }
+        game:GetService("ReplicatedStorage"):WaitForChild("BetweenSides"):WaitForChild("Remotes"):WaitForChild("Events"):WaitForChild("ToolsEvent"):FireServer(unpack(fruitArgs))
+        task.wait(0.25)
+    end
+end
+Tabs.Misc:AddToggle("AutoStoreToggle", {
+    Title = "Auto Store Fruits",
+    Default = false,
+    Callback = function(value)
+        isRunning = value
+        if value then
+            coroutine.wrap(storeFruit)()
+        end
+    end
+})
+-- ===== Server Hop (Misc) - LOW POP =====
+do
+    local TeleportService = game:GetService("TeleportService")
+    local HttpService = game:GetService("HttpService")
+    local Players = game:GetService("Players")
+    local PlaceId = game.PlaceId
+    local CurrentJobId = game.JobId
+
+    -- CONFIG: máximo de players que consideramos "pouco cheio"
+    local TARGET_MAX = 5         -- mude para 3/8/etc se quiser
+    local INCLUDE_EMPTY = true   -- permitir servidores vazios (0 players)
+
+    local function tryTeleport(jobId)
+        if jobId and jobId ~= CurrentJobId then
+            TeleportService:TeleportToPlaceInstance(PlaceId, jobId, Players.LocalPlayer)
+            return true
+        end
+        return false
+    end
+
+    local function HopLowPop()
+        local cursor = ""
+        -- percorre algumas páginas para achar instância com pouca gente
+        for _ = 1, 8 do
+            local url = ("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100%s")
+                :format(PlaceId, (cursor ~= "" and ("&cursor=" .. cursor) or ""))
+            local ok, body = pcall(function() return game:HttpGet(url) end)
+            if not ok or not body then break end
+
+            local data = nil
+            local okDecode, decoded = pcall(function() return HttpService:JSONDecode(body) end)
+            if okDecode then data = decoded end
+            if not data or not data.data then break end
+
+            -- 1) tentar 1..TARGET_MAX players
+            for _, server in ipairs(data.data) do
+                local p = tonumber(server.playing) or 0
+                local cap = tonumber(server.maxPlayers) or 0
+                if server.id ~= CurrentJobId and p > 0 and p <= TARGET_MAX and p < cap then
+                    if tryTeleport(server.id) then return end
+                end
+            end
+
+            -- 2) opcional: tentar vazios
+            if INCLUDE_EMPTY then
+                for _, server in ipairs(data.data) do
+                    local p = tonumber(server.playing) or 0
+                    local cap = tonumber(server.maxPlayers) or 0
+                    if server.id ~= CurrentJobId and p == 0 and p < cap then
+                        if tryTeleport(server.id) then return end
+                    end
+                end
+            end
+
+            cursor = data.nextPageCursor or ""
+            if cursor == "" or cursor == nil then break end
+        end
+
+        -- Fallback: qualquer servidor diferente (Roblox decide)
+        TeleportService:Teleport(PlaceId, Players.LocalPlayer)
+    end
+
+    -- Adiciona o botão "Hop Server" na aba Misc (se ainda não existir)
+    if Tabs and Tabs.Misc then
+        local okSection = true
+        pcall(function() Tabs.Misc:AddSection("Server") end)
+        pcall(function()
+            Tabs.Misc:AddButton({
+                Title = "Hop Server (Low Pop)",
+                Description = "Ir para um servidor com pouca gente",
+                Callback = HopLowPop
+            })
+        end)
+    end
+end
+-- ============================================
+
+-- ===== Hop automático se alguém ficar perto por 50s =====
+do
+    local ProximityHopEnabled = true -- ligado por padrão
+    local HOP_CHANCE = 0.5 -- 50% de chance de executar o hop
+    local NEAR_DISTANCE = 30         -- distância para considerar "perto" (studs)
+    local REQUIRED_SECONDS = 2       -- tempo contínuo com alguém perto
+    
+    local nearStart = nil
+    local lastJobId = game.JobId
+
+    -- expõe função HopLowPop() se estiver local ao escopo
+    local function _tryHop()
+        if typeof(HopLowPop) == "function" then
+            HopLowPop()
+        else
+            -- fallback: Teleport para qualquer outro servidor
+            local TeleportService = game:GetService("TeleportService")
+            local Players = game:GetService("Players")
+            TeleportService:Teleport(game.PlaceId, Players.LocalPlayer)
+        end
+    end
+
+    -- UI (Aba Misc)
+    if Tabs and Tabs.Misc then
+        Tabs.Misc:AddSection("Segurança")
+        Tabs.Misc:AddToggle("ProximityHopToggle", {
+            Title = "Hop se alguém perto (50s)",
+            Default = true,
+            Callback = function(v) ProximityHopEnabled = v end
+        })
+        Tabs.Misc:AddSlider("ProxDist", {
+            Title = "Distância de detecção (studs)",
+            Default = NEAR_DISTANCE, Min = 10, Max = 200, Rounding = 0,
+            Callback = function(val) NEAR_DISTANCE = val end
+        })
+    end
+
+    -- Monitoramento contínuo
+    task.spawn(function()
+        while true do
+            task.wait(0.2)
+            if not ProximityHopEnabled then
+                nearStart = nil
+                continue
+            end
+            local myChar = Player.Character
+            if not myChar or not myChar.PrimaryPart then
+                nearStart = nil
+                continue
+            end
+            local myPos = myChar.PrimaryPart.Position
+            local someoneNear = false
+            for _, pl in ipairs(Players:GetPlayers()) do
+                if pl ~= Player then
+                    local ch = pl.Character
+                    local hum = ch and ch:FindFirstChildOfClass("Humanoid")
+                    local hrp = ch and ch:FindFirstChild("HumanoidRootPart")
+                    if hum and hum.Health > 0 and hrp then
+                        if (hrp.Position - myPos).Magnitude <= NEAR_DISTANCE then
+                            someoneNear = true
+                            break
+                        end
+                    end
+                end
+            end
+            if someoneNear then
+                if not nearStart then nearStart = time() end
+                if time() - nearStart >= REQUIRED_SECONDS then
+                    nearStart = nil
+                    if math.random() < HOP_CHANCE then
+            _tryHop()
+        end
+                end
+            else
+                nearStart = nil
+            end
+        end
+    end)
+end
+-- =========================================================
+
+-- === Minimize/Restore toggle (starts minimized) ===
+local interfaceMinimized = true
+
+-- Start minimized right after UI is created
+task.spawn(function()
+    task.wait(0.2)
+    pcall(function() Window:Minimize() end)
+end)
+
+if Tabs and Tabs.SettingsTab then
+    pcall(function() Tabs.SettingsTab:AddSection("Interface") end)
+    pcall(function()
+        Tabs.SettingsTab:AddButton({
+            Title = "Mostrar/Ocultar Interface",
+            Description = "Alterna entre minimizar e restaurar a janela",
+            Callback = function()
+                if interfaceMinimized then
+                    pcall(function() Window:Restore() end)
+                    interfaceMinimized = false
+                else
+                    pcall(function() Window:Minimize() end)
+                    interfaceMinimized = true
+                end
+            end
+        })
+    end)
+end
+-- ================================================
+SaveManager:SetLibrary(Fluent)
+InterfaceManager:SetLibrary(Fluent)
+SaveManager:IgnoreThemeSettings()
+SaveManager:SetIgnoreIndexes({})
+InterfaceManager:BuildInterfaceSection(Tabs.SettingsTab)
+SaveManager:BuildConfigSection(Tabs.SettingsTab)
+Window:SelectTab(1)
